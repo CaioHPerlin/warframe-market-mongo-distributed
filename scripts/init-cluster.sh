@@ -1,5 +1,4 @@
 #!/bin/bash
-
 echo "Waiting for nodes to start..."
 sleep 15
 
@@ -73,7 +72,6 @@ sleep 5
 # 6. Enable sharding for the database and collections
 echo "- Enabling sharding for collections..."
 mongosh --host mongos:27017 --eval "
-
 sh.enableSharding('wfmarket')
 
 // items: hashed on _id (uniform distribution)
@@ -90,6 +88,17 @@ sh.shardCollection('wfmarket.orders', { platform: 1, item_id: 1 })
 // Most common query: 'price history for item X during period Y' (targeted)
 // Placing item_id first avoids timestamp hotspots
 sh.shardCollection('wfmarket.transactions', { item_id: 1, completed_at: 1 })
+
+// ratings: intentionally left unsharded.
+// Write volume is naturally low (one rating per pair of players who may have
+// completed a transaction), so there is no throughput bottleneck to justify
+// sharding. The collection lives on the primary shard as a regular collection.
+// The unique compound index below enforces the business rule directly at the
+// schema level: a player may rate another player only once. @TODO move this to code
+//db.getSiblingDB('wfmarket').ratings.createIndex(
+//  { rater_id: 1, rated_id: 1 },
+//  { unique: true, name: 'uniq_rater_rated' }
+//)
 "
 
 echo "✅ Cluster successfully initialized."
