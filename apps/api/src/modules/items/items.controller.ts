@@ -1,16 +1,14 @@
 import { Hono } from "hono";
-import * as itemService from "../services/item";
+import { itemsService } from "../../container";
 
 const items = new Hono();
 
 items.get("/", async (c) => {
-  const search = c.req.query("q");
-  const result = await itemService.listItems(search);
-  return c.json(result);
+  return c.json(await itemsService.list(c.req.query("q")));
 });
 
 items.get("/:id", async (c) => {
-  const item = await itemService.getItem(c.req.param("id"));
+  const item = await itemsService.get(c.req.param("id")!);
   if (!item) return c.json({ error: "Not found" }, 404);
   return c.json(item);
 });

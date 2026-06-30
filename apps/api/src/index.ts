@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { auth } from "./routes/auth";
-import { items } from "./routes/items";
-import { orders } from "./routes/orders";
-import { transactions } from "./routes/transactions";
-import { ratings } from "./routes/ratings";
-import { players } from "./routes/players";
+import { auth } from "./modules/auth/auth.controller";
+import { items } from "./modules/items/items.controller";
+import { orders } from "./modules/orders/orders.controller";
+import { transactions } from "./modules/transactions/transactions.controller";
+import { ratings } from "./modules/ratings/ratings.controller";
+import { players } from "./modules/players/players.controller";
 import { ensureSchema } from "./db/schema";
 
 const app = new Hono();
