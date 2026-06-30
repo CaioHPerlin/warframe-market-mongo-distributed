@@ -1,24 +1,18 @@
 import { Hono } from "hono";
-import { getDB } from "../db/client";
-import { ObjectId } from "mongodb";
+import * as itemService from "../services/item";
 
 const items = new Hono();
 
 items.get("/", async (c) => {
-  const db = await getDB();
   const search = c.req.query("q");
-  const filter: Record<string, unknown> = {};
-  if (search) filter.item_name = { $regex: search, $options: "i" };
-
-  const docs = await db.collection("items").find(filter).limit(100).toArray();
-  return c.json(docs.map((d) => ({ ...d, _id: d._id.toString() })));
+  const result = await itemService.listItems(search);
+  return c.json(result);
 });
 
 items.get("/:id", async (c) => {
-  const db = await getDB();
-  const doc = await db.collection("items").findOne({ _id: new ObjectId(c.req.param("id")) });
-  if (!doc) return c.json({ error: "Not found" }, 404);
-  return c.json({ ...doc, _id: doc._id.toString() });
+  const item = await itemService.getItem(c.req.param("id"));
+  if (!item) return c.json({ error: "Not found" }, 404);
+  return c.json(item);
 });
 
 export { items };

@@ -1,13 +1,11 @@
 import { Hono } from "hono";
-import { getDB } from "../db/client";
 import { createOrderSchema } from "@warframe/shared";
 import { authMiddleware } from "../middleware/auth";
-import { ObjectId } from "mongodb";
+import * as orderService from "../services/order";
 
 const orders = new Hono();
 
 orders.get("/", async (c) => {
-  const db = await getDB();
   const filter: Record<string, unknown> = {};
 
   const itemId = c.req.query("item_id");
@@ -20,15 +18,14 @@ orders.get("/", async (c) => {
   if (status) filter.status = status;
   else filter.status = "active";
 
-  const docs = await db.collection("orders").find(filter).sort({ createdAt: -1 }).limit(100).toArray();
-  return c.json(docs.map((d) => ({ ...d, _id: d._id.toString() })));
+  const result = await orderService.listOrders(filter);
+  return c.json(result);
 });
 
 orders.get("/:id", async (c) => {
-  const db = await getDB();
-  const doc = await db.collection("orders").findOne({ _id: new ObjectId(c.req.param("id")) });
-  if (!doc) return c.json({ error: "Not found" }, 404);
-  return c.json({ ...doc, _id: doc._id.toString() });
+  const order = await orderService.getOrder(c.req.param("id")!);
+  if (!order) return c.json({ error: "Not found" }, 404);
+  return c.json(order);
 });
 
 orders.post("/", authMiddleware, async (c) => {
@@ -37,55 +34,35 @@ orders.post("/", authMiddleware, async (c) => {
   const parsed = createOrderSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
-  const db = await getDB();
-  const now = new Date().toISOString();
-  const doc = {
-    ...parsed.data,
-    player_id: playerId,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const result = await db.collection("orders").insertOne(doc);
-  return c.json({ ...doc, _id: result.insertedId.toString() }, 201);
+  const order = await orderService.createOrder(playerId, parsed.data);
+  return c.json(order, 201);
 });
 
 orders.put("/:id", authMiddleware, async (c) => {
   const { sub: playerId } = c.get("player");
-  const db = await getDB();
-  const id = c.req.param("id");
-
-  const existing = await db.collection("orders").findOne({ _id: new ObjectId(id) });
-  if (!existing) return c.json({ error: "Not found" }, 404);
-  if (existing.player_id !== playerId) return c.json({ error: "Forbidden" }, 403);
-
   const body = await c.req.json();
   const parsed = createOrderSchema.partial().safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
-  const update = { $set: { ...parsed.data, updatedAt: new Date().toISOString() } };
-  await db.collection("orders").updateOne({ _id: new ObjectId(id) }, update);
-
-  const updated = await db.collection("orders").findOne({ _id: new ObjectId(id) });
-  return c.json({ ...updated, _id: updated!._id.toString() });
+  try {
+    const order = await orderService.updateOrderById(c.req.param("id")!, playerId, parsed.data);
+    if (!order) return c.json({ error: "Not found" }, 404);
+    return c.json(order);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 403);
+  }
 });
 
 orders.delete("/:id", authMiddleware, async (c) => {
   const { sub: playerId } = c.get("player");
-  const db = await getDB();
-  const id = c.req.param("id");
 
-  const existing = await db.collection("orders").findOne({ _id: new ObjectId(id) });
-  if (!existing) return c.json({ error: "Not found" }, 404);
-  if (existing.player_id !== playerId) return c.json({ error: "Forbidden" }, 403);
-
-  await db.collection("orders").updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { status: "cancelled", updatedAt: new Date().toISOString() } },
-  );
-
-  return c.json({ ok: true });
+  try {
+    const ok = await orderService.cancelOrder(c.req.param("id")!, playerId);
+    if (!ok) return c.json({ error: "Not found" }, 404);
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 403);
+  }
 });
 
 export { orders };

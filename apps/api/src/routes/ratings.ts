@@ -1,20 +1,16 @@
 import { Hono } from "hono";
-import { getDB } from "../db/client";
 import { createRatingSchema } from "@warframe/shared";
 import { authMiddleware } from "../middleware/auth";
-import { ObjectId } from "mongodb";
+import * as ratingService from "../services/rating";
 
 const ratings = new Hono();
 
 ratings.get("/", async (c) => {
-  const db = await getDB();
-  const filter: Record<string, unknown> = {};
-
   const playerId = c.req.query("player_id");
-  if (playerId) filter.rated_id = playerId;
+  if (!playerId) return c.json({ error: "player_id query parameter required" }, 400);
 
-  const docs = await db.collection("ratings").find(filter).sort({ createdAt: -1 }).limit(100).toArray();
-  return c.json(docs.map((d) => ({ ...d, _id: d._id.toString() })));
+  const result = await ratingService.listRatingsByPlayer(playerId);
+  return c.json(result);
 });
 
 ratings.post("/", authMiddleware, async (c) => {
@@ -23,28 +19,15 @@ ratings.post("/", authMiddleware, async (c) => {
   const parsed = createRatingSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
-  if (parsed.data.rated_id === raterId) {
-    return c.json({ error: "Cannot rate yourself" }, 400);
+  try {
+    const rating = await ratingService.ratePlayer(raterId, parsed.data);
+    return c.json(rating, 201);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message === "Already rated this player") return c.json({ error: message }, 409);
+    if (message === "Cannot rate yourself") return c.json({ error: message }, 400);
+    throw err;
   }
-
-  const db = await getDB();
-
-  const existing = await db.collection("ratings").findOne({
-    rater_id: raterId,
-    rated_id: parsed.data.rated_id,
-  });
-  if (existing) return c.json({ error: "Already rated this player" }, 409);
-
-  const doc = {
-    rater_id: raterId,
-    rated_id: parsed.data.rated_id,
-    rating: parsed.data.rating,
-    comment: parsed.data.comment ?? null,
-    createdAt: new Date().toISOString(),
-  };
-
-  const result = await db.collection("ratings").insertOne(doc);
-  return c.json({ ...doc, _id: result.insertedId.toString() }, 201);
 });
 
 export { ratings };

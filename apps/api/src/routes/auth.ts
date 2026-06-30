@@ -1,11 +1,9 @@
 import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
-import { getDB } from "../db/client";
 import { registerSchema, loginSchema } from "@warframe/shared";
-import { signToken } from "../lib/jwt";
+import * as authService from "../services/auth";
 import { authMiddleware } from "../middleware/auth";
-import bcrypt from "bcryptjs";
-import { ObjectId } from "mongodb";
+import { findPlayerById } from "../repositories/player";
 
 const auth = new Hono();
 
@@ -14,26 +12,20 @@ auth.post("/register", async (c) => {
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
-  const { username, password, platform } = parsed.data;
-  const db = await getDB();
-
-  const existing = await db.collection("players").findOne({ username });
-  if (existing) return c.json({ error: "Username taken" }, 409);
-
-  const password_hash = await bcrypt.hash(password, 10);
-  const now = new Date().toISOString();
-  const doc = { username, password_hash, platform, createdAt: now };
-  const result = await db.collection("players").insertOne(doc);
-
-  const token = await signToken({ sub: result.insertedId.toString(), username });
-  setCookie(c, "token", token, {
-    httpOnly: true,
-    sameSite: "Lax",
-    path: "/",
-    maxAge: 604800,
-  });
-
-  return c.json({ id: result.insertedId.toString(), username, platform }, 201);
+  try {
+    const result = await authService.register(parsed.data);
+    setCookie(c, "token", result.token, {
+      httpOnly: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 604800,
+    });
+    return c.json({ id: result.id, username: result.username, platform: result.platform }, 201);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (message === "Username taken") return c.json({ error: message }, 409);
+    throw err;
+  }
 });
 
 auth.post("/login", async (c) => {
@@ -41,24 +33,18 @@ auth.post("/login", async (c) => {
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
-  const { username, password } = parsed.data;
-  const db = await getDB();
-
-  const player = await db.collection("players").findOne({ username });
-  if (!player) return c.json({ error: "Invalid credentials" }, 401);
-
-  const valid = await bcrypt.compare(password, player.password_hash);
-  if (!valid) return c.json({ error: "Invalid credentials" }, 401);
-
-  const token = await signToken({ sub: player._id.toString(), username: player.username });
-  setCookie(c, "token", token, {
-    httpOnly: true,
-    sameSite: "Lax",
-    path: "/",
-    maxAge: 604800,
-  });
-
-  return c.json({ id: player._id.toString(), username: player.username, platform: player.platform });
+  try {
+    const result = await authService.login(parsed.data);
+    setCookie(c, "token", result.token, {
+      httpOnly: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 604800,
+    });
+    return c.json({ id: result.id, username: result.username, platform: result.platform });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 401);
+  }
 });
 
 auth.post("/logout", (c) => {
@@ -68,12 +54,11 @@ auth.post("/logout", (c) => {
 
 auth.get("/me", authMiddleware, async (c) => {
   const { sub } = c.get("player");
-  const db = await getDB();
-  const player = await db.collection("players").findOne({ _id: new ObjectId(sub) });
+  const player = await findPlayerById(sub);
   if (!player) return c.json({ error: "Not found" }, 404);
 
   return c.json({
-    id: player._id.toString(),
+    id: player._id,
     username: player.username,
     platform: player.platform,
     createdAt: player.createdAt,
