@@ -1,0 +1,15 @@
+{
+  "name": "warframe-market-mongo-distributed",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"bun run dev:api\" \"bun run dev:web\"",
+    "dev:api": "bun run --filter @warframe/api dev",
+    "dev:web": "bun run --filter @warframe/web dev",
+    "seed": "bun run --filter @warframe/seed start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.3"
+  }
+}
