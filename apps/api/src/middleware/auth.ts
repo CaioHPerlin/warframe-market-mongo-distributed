@@ -1,20 +1,11 @@
 import type { Context, Next } from "hono";
+import { getCookie } from "hono/cookie";
 import { verifyToken, type JwtPayload } from "../lib/jwt";
 
 declare module "hono" {
   interface ContextVariableMap {
     player: JwtPayload;
   }
-}
-
-function getCookie(c: Context, name: string): string | null {
-  const cookie = c.req.header("cookie");
-  if (!cookie) return null;
-  for (const part of cookie.split(";")) {
-    const [key, ...rest] = part.trim().split("=");
-    if (key === name) return rest.join("=");
-  }
-  return null;
 }
 
 export async function authMiddleware(c: Context, next: Next) {

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
+import { setCookie, deleteCookie } from "hono/cookie";
 import { getDB } from "../db/client";
-import { registerSchema, loginSchema, playerSchema } from "@warframe/shared";
-import { signToken, verifyToken } from "../lib/jwt";
+import { registerSchema, loginSchema } from "@warframe/shared";
+import { signToken } from "../lib/jwt";
 import { authMiddleware } from "../middleware/auth";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { ObjectId } from "mongodb";
 
 const auth = new Hono();
@@ -22,19 +22,17 @@ auth.post("/register", async (c) => {
 
   const password_hash = await bcrypt.hash(password, 10);
   const now = new Date().toISOString();
-  const doc = {
-    username,
-    password_hash,
-    platform,
-    createdAt: now,
-  };
-
+  const doc = { username, password_hash, platform, createdAt: now };
   const result = await db.collection("players").insertOne(doc);
 
-  const player = { sub: result.insertedId.toString(), username, platform };
-  const token = await signToken(player);
+  const token = await signToken({ sub: result.insertedId.toString(), username });
+  setCookie(c, "token", token, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 604800,
+  });
 
-  c.header("Set-Cookie", `token=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`);
   return c.json({ id: result.insertedId.toString(), username, platform }, 201);
 });
 
@@ -52,17 +50,19 @@ auth.post("/login", async (c) => {
   const valid = await bcrypt.compare(password, player.password_hash);
   if (!valid) return c.json({ error: "Invalid credentials" }, 401);
 
-  const token = await signToken({
-    sub: player._id.toString(),
-    username: player.username,
+  const token = await signToken({ sub: player._id.toString(), username: player.username });
+  setCookie(c, "token", token, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 604800,
   });
 
-  c.header("Set-Cookie", `token=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`);
   return c.json({ id: player._id.toString(), username: player.username, platform: player.platform });
 });
 
 auth.post("/logout", (c) => {
-  c.header("Set-Cookie", "token=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
+  deleteCookie(c, "token", { path: "/" });
   return c.json({ ok: true });
 });
 
