@@ -3,3 +3,6 @@ node_modules/
 plan.md
 dist/
 .cache/
+*.js.map
+*.d.ts
+*.d.ts.map
