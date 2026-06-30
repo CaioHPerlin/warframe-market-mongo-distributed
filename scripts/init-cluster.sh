@@ -73,21 +73,21 @@ sleep 5
 # 6. Enable sharding for the database and collections
 echo "- Enabling sharding for collections..."
 mongosh --host mongos:27017 --eval "
-// Enable sharding for the database
+
 sh.enableSharding('wfmarket')
 
-// items — hashed on _id (uniform distribution, static catalog)
+// items: hashed on _id (uniform distribution)
 sh.shardCollection('wfmarket.items', { _id: 'hashed' })
 
-// players — hashed on _id (uniform distribution, no dominant query pattern)
+// players: hashed on _id (uniform distribution)
 sh.shardCollection('wfmarket.players', { _id: 'hashed' })
 
-// orders — compound key: platform + item_id
-// Most common query: 'active orders for item X on platform Y' — targeted
+// orders: compound key: platform + item_id
+// Most common query: 'active orders for item X on platform Y' (targeted)
 sh.shardCollection('wfmarket.orders', { platform: 1, item_id: 1 })
 
-// transactions — compound key: item_id + completed_at
-// Most common query: 'price history for item X during period Y' — targeted
+// transactions: compound key: item_id + completed_at
+// Most common query: 'price history for item X during period Y' (targeted)
 // Placing item_id first avoids timestamp hotspots
 sh.shardCollection('wfmarket.transactions', { item_id: 1, completed_at: 1 })
 "
