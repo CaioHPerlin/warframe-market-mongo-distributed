@@ -7,8 +7,18 @@ declare module "hono" {
   }
 }
 
+function getCookie(c: Context, name: string): string | null {
+  const cookie = c.req.header("cookie");
+  if (!cookie) return null;
+  for (const part of cookie.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return null;
+}
+
 export async function authMiddleware(c: Context, next: Next) {
-  const token = c.req.cookie("token");
+  const token = getCookie(c, "token");
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
   const payload = await verifyToken(token);
@@ -19,7 +29,7 @@ export async function authMiddleware(c: Context, next: Next) {
 }
 
 export async function optionalAuthMiddleware(c: Context, next: Next) {
-  const token = c.req.cookie("token");
+  const token = getCookie(c, "token");
   if (token) {
     const payload = await verifyToken(token);
     if (payload) c.set("player", payload);

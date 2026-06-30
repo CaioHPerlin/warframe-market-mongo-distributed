@@ -1,6 +1,6 @@
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
-function base64url(data: ArrayBuffer): string {
+function base64url(data: ArrayBufferLike): string {
   return btoa(String.fromCharCode(...new Uint8Array(data)))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
