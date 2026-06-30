@@ -51,7 +51,7 @@ export default function RegisterPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="platform">Platform</Label>
-              <Select value={platform} onValueChange={setPlatform}>
+              <Select value={platform} onValueChange={(v) => v && setPlatform(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

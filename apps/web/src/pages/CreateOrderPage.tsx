@@ -31,9 +31,7 @@ export default function CreateOrderPage() {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground mb-4">You must be logged in to place an order.</p>
-        <Button asChild>
-          <Link to="/login">Login</Link>
-        </Button>
+        <Button render={<Link to="/login" />}>Login</Button>
       </div>
     );
   }
@@ -70,7 +68,7 @@ export default function CreateOrderPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label>Order Type</Label>
-              <Select value={orderType} onValueChange={(v: "buy" | "sell") => setOrderType(v)}>
+              <Select value={orderType} onValueChange={(v) => v && setOrderType(v as "buy" | "sell")}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -90,7 +88,7 @@ export default function CreateOrderPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="platform">Platform</Label>
-              <Select value={platform} onValueChange={setPlatform}>
+              <Select value={platform} onValueChange={(v) => v && setPlatform(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

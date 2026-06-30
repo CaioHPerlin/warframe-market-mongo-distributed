@@ -101,9 +101,7 @@ export default function ItemDetailPage() {
       </Tabs>
 
       <div className="mt-6">
-        <Button asChild>
-          <Link to={`/orders/new?item_id=${id}`}>Place Order</Link>
-        </Button>
+        <Button render={<Link to={`/orders/new?item_id=${id}`} />}>Place Order</Button>
       </div>
     </div>
   );
