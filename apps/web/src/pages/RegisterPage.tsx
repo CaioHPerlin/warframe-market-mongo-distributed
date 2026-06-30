@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { UserPlusIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const PLATFORMS = ["pc", "ps4", "xbox", "switch"] as const;
@@ -33,24 +34,24 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex justify-center pt-12">
+    <div className="flex justify-center pt-16">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Register</CardTitle>
-          <CardDescription>New Tenno, ready for duty</CardDescription>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Register</CardTitle>
+          <CardDescription>Create your Tenno account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="platform">Platform</Label>
+              <Label>Platform</Label>
               <Select value={platform} onValueChange={(v) => v && setPlatform(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -62,11 +63,12 @@ export default function RegisterPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Creating..." : "Register"}
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting ? "Creating..." : <><UserPlusIcon className="size-4" /> Register</>}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Already have an account? <Link to="/login" className="text-primary no-underline hover:underline">Login</Link>
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary no-underline hover:underline font-medium">Login</Link>
             </p>
           </form>
         </CardContent>

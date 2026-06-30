@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { ShoppingCartIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const PLATFORMS = ["pc", "ps4", "xbox", "switch"] as const;
@@ -29,8 +30,8 @@ export default function CreateOrderPage() {
 
   if (!player) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">You must be logged in to place an order.</p>
+      <div className="flex flex-col items-center gap-4 py-20">
+        <p className="text-muted-foreground">You must be logged in to place an order.</p>
         <Button render={<Link to="/login" />}>Login</Button>
       </div>
     );
@@ -58,10 +59,10 @@ export default function CreateOrderPage() {
   };
 
   return (
-    <div className="flex justify-center pt-12">
+    <div className="flex justify-center pt-16">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Place Order</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Place Order</CardTitle>
           <CardDescription>Set your price and quantity</CardDescription>
         </CardHeader>
         <CardContent>
@@ -87,7 +88,7 @@ export default function CreateOrderPage() {
               <Input id="quantity" type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="platform">Platform</Label>
+              <Label>Platform</Label>
               <Select value={platform} onValueChange={(v) => v && setPlatform(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -99,8 +100,8 @@ export default function CreateOrderPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Placing..." : "Place Order"}
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting ? "Placing..." : <><ShoppingCartIcon className="size-4" /> Place Order</>}
             </Button>
           </form>
         </CardContent>

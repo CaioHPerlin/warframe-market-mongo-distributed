@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { LogInIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -29,27 +30,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center pt-12">
+    <div className="flex justify-center pt-16">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>Welcome back, Tenno</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Logging in..." : "Login"}
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting ? "Logging in..." : <><LogInIcon className="size-4" /> Login</>}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Don't have an account? <Link to="/register" className="text-primary no-underline hover:underline">Register</Link>
+              Don&apos;t have an account?{" "}
+              <Link to="/register" className="text-primary no-underline hover:underline font-medium">Register</Link>
             </p>
           </form>
         </CardContent>

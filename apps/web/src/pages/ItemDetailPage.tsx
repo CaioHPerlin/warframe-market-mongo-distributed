@@ -5,8 +5,9 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Separator } from "../components/ui/separator";
 import { WhisperButton } from "../components/WhisperButton";
+import { ArrowLeftIcon, ShoppingCartIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 type Order = {
   _id: string;
@@ -43,65 +44,121 @@ export default function ItemDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="size-16 rounded-xl" />
           <div className="space-y-2">
-            <Skeleton className="h-6 w-24" />
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-32" />
           </div>
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-24" />
-            {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
-          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
         </div>
       </div>
     );
   }
 
-  if (!item) return <p className="text-destructive text-center py-12">Item not found</p>;
+  if (!item) return (
+    <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground">
+      <p className="text-lg">Item not found</p>
+      <Button variant="outline" render={<Link to="/" />}>Back to items</Button>
+    </div>
+  );
 
   const itemName = item.item_name as string;
+  const tags = (item.tags as string[]) ?? [];
+  const thumb = item.thumb as string | undefined;
   const sellOrders = orders.filter((o) => o.order_type === "sell");
   const buyOrders = orders.filter((o) => o.order_type === "buy");
+  const lowestSell = sellOrders.length ? Math.min(...sellOrders.map((o) => o.platinum)) : null;
+  const highestBuy = buyOrders.length ? Math.max(...buyOrders.map((o) => o.platinum)) : null;
 
   return (
-    <div>
-      <Link to="/" className="text-sm text-muted-foreground no-underline hover:text-foreground">&larr; Back to items</Link>
-      <h1 className="text-2xl font-bold mt-2 mb-6">{itemName}</h1>
+    <div className="space-y-6">
+      <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground transition-colors">
+        <ArrowLeftIcon className="size-3.5" />
+        Back to items
+      </Link>
 
-      <Tabs defaultValue="sell">
-        <TabsList>
-          <TabsTrigger value="sell">Sell Orders ({sellOrders.length})</TabsTrigger>
-          <TabsTrigger value="buy">Buy Orders ({buyOrders.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="sell" className="mt-4">
-          {sellOrders.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No sell orders.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {sellOrders.map((o) => (
-                <OrderCard key={o._id} order={o} itemName={itemName} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="buy" className="mt-4">
-          {buyOrders.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No buy orders.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {buyOrders.map((o) => (
-                <OrderCard key={o._id} order={o} itemName={itemName} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="flex items-start gap-4">
+        {thumb && (
+          <img src={thumb} alt="" className="size-16 rounded-xl bg-muted/50 object-contain shrink-0" />
+        )}
+        <div className="min-w-0">
+          <h1 className="text-2xl font-heading font-bold tracking-tight">{itemName}</h1>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {tags.map((tag: string) => (
+              <Badge key={tag} variant="secondary">{tag}</Badge>
+            ))}
+          </div>
+        </div>
+      </div>
 
-      <div className="mt-6">
-        <Button render={<Link to={`/orders/new?item_id=${id}`} />}>Place Order</Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Card size="sm">
+          <CardContent className="flex items-center gap-3 pt-(--card-spacing)">
+            <TrendingDownIcon className="size-5 text-success" />
+            <div>
+              <p className="text-xs text-muted-foreground">Lowest sell</p>
+              <p className="text-lg font-bold text-success">
+                {lowestSell != null ? `${lowestSell}p` : "—"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardContent className="flex items-center gap-3 pt-(--card-spacing)">
+            <TrendingUpIcon className="size-5 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Highest buy</p>
+              <p className="text-lg font-bold text-primary">
+                {highestBuy != null ? `${highestBuy}p` : "—"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-heading font-semibold">Sell Orders ({sellOrders.length})</h2>
+          <Button size="sm" render={<Link to={`/orders/new?item_id=${id}`} />}>
+            <ShoppingCartIcon className="size-3.5" />
+            Place Order
+          </Button>
+        </div>
+        {sellOrders.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No sell orders yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {sellOrders.map((o) => (
+              <OrderCard key={o._id} order={o} itemName={itemName} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-heading font-semibold">Buy Orders ({buyOrders.length})</h2>
+        {buyOrders.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No buy orders yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {buyOrders.map((o) => (
+              <OrderCard key={o._id} order={o} itemName={itemName} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -112,14 +169,14 @@ function OrderCard({ order, itemName }: { order: Order; itemName: string }) {
     <Card size="sm">
       <CardContent className="flex items-center justify-between gap-4 pt-(--card-spacing)">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-gold font-medium shrink-0">{order.platinum}p</span>
-          <span className="text-muted-foreground text-xs shrink-0">x{order.quantity}</span>
-          <Badge variant="outline" className="text-[10px]">{order.platform.toUpperCase()}</Badge>
+          <span className="text-lg font-bold text-gold shrink-0">{order.platinum}<span className="text-sm text-muted-foreground font-normal">p</span></span>
+          <span className="text-xs text-muted-foreground shrink-0">x{order.quantity}</span>
+          <Badge variant="outline" className="text-[10px] leading-none">{order.platform.toUpperCase()}</Badge>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
             to={`/players/${order.player_id}`}
-            className="text-xs text-muted-foreground no-underline hover:text-foreground"
+            className="text-xs text-muted-foreground no-underline hover:text-foreground transition-colors"
           >
             {order.player_username}
           </Link>
