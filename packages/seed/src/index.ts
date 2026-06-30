@@ -34,10 +34,12 @@ async function seed() {
 
   const items = await fetchItems();
 
+  const IMG_BASE = "https://api.warframe.market/";
+
   const docs = items.map((item) => ({
     item_name: item.i18n.en.name,
     url_name: item.slug,
-    thumb: item.i18n.en.thumb ?? null,
+    thumb: item.i18n.en.thumb ? `${IMG_BASE}${item.i18n.en.thumb}` : null,
     tags: item.tags ?? [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
