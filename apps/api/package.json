@@ -1,0 +1,20 @@
+{
+  "name": "@warframe/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@warframe/shared": "workspace:*",
+    "hono": "^4.7.7",
+    "mongodb": "^6.15.0",
+    "bcryptjs": "^3.0.2",
+    "@hono/zod-validator": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6"
+  }
+}
