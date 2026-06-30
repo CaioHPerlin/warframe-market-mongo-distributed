@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-warframe-bg: #0a0b0e;
+  --color-warframe-surface: #14161a;
+  --color-warframe-border: #2a2d35;
+  --color-warframe-text: #d4d4d8;
+  --color-warframe-muted: #71717a;
+  --color-warframe-accent: #4a9eff;
+  --color-warframe-gold: #d4a843;
+  --color-warframe-red: #ef4444;
+  --color-warframe-green: #22c55e;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--color-warframe-bg);
+  color: var(--color-warframe-text);
+  min-height: 100vh;
+}
+
+@layer base {
+  a {
+    color: var(--color-warframe-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
