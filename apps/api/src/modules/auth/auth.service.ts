@@ -1,7 +1,7 @@
+import type { LoginInput, RegisterInput } from "@warframe/shared";
 import bcrypt from "bcryptjs";
-import { PlayersService } from "../players/players.service";
 import { signToken } from "../../lib/jwt";
-import type { RegisterInput, LoginInput } from "@warframe/shared";
+import { PlayersService } from "../players/players.service";
 
 export type AuthResult = {
   id: string;
@@ -36,8 +36,16 @@ export class AuthService {
     const valid = await bcrypt.compare(input.password, player.password_hash);
     if (!valid) throw new Error("Invalid credentials");
 
-    const token = await signToken({ sub: player._id, username: player.username });
-    return { id: player._id, username: player.username, platform: player.platform, token };
+    const token = await signToken({
+      sub: player._id,
+      username: player.username,
+    });
+    return {
+      id: player._id,
+      username: player.username,
+      platform: player.platform,
+      token,
+    };
   }
 
   async findById(id: string) {

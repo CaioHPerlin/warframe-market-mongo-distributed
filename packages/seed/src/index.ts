@@ -1,24 +1,28 @@
 import { MongoClient } from "mongodb";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/wfmarket";
+const MONGO_URI = Bun.env.MONGO_URI || "mongodb://localhost:27017/wfmarket";
 const client = new MongoClient(MONGO_URI);
 
-type WarframeItem = {
+type ApiItem = {
   id: string;
-  item_name: string;
-  url_name: string;
-  thumb?: string;
-  tags?: string[];
+  slug: string;
+  tags: string[];
+  i18n: {
+    en: {
+      name: string;
+      thumb?: string;
+    };
+  };
 };
 
-async function fetchItems(): Promise<WarframeItem[]> {
+async function fetchItems(): Promise<ApiItem[]> {
   console.log("Fetching items from warframe.market API...");
   const res = await fetch("https://api.warframe.market/v2/items", {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) throw new Error(`API responded with ${res.status}`);
   const json = await res.json();
-  const items: WarframeItem[] = json.payload?.items ?? json.items ?? [];
+  const items: ApiItem[] = json.data ?? [];
   console.log(`Fetched ${items.length} items`);
   return items;
 }
@@ -31,9 +35,9 @@ async function seed() {
   const items = await fetchItems();
 
   const docs = items.map((item) => ({
-    item_name: item.item_name,
-    url_name: item.url_name,
-    thumb: item.thumb ?? null,
+    item_name: item.i18n.en.name,
+    url_name: item.slug,
+    thumb: item.i18n.en.thumb ?? null,
     tags: item.tags ?? [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -53,8 +57,18 @@ async function seed() {
   if (!testPlayer) {
     console.log("Seeding sample players...");
     const players = [
-      { username: "tenno_one", password_hash: "$2a$10$dummy", platform: "pc", createdAt: new Date().toISOString() },
-      { username: "tenno_two", password_hash: "$2a$10$dummy", platform: "pc", createdAt: new Date().toISOString() },
+      {
+        username: "tenno_one",
+        password_hash: "$2a$10$dummy",
+        platform: "pc",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        username: "tenno_two",
+        password_hash: "$2a$10$dummy",
+        platform: "pc",
+        createdAt: new Date().toISOString(),
+      },
     ];
     await db.collection("players").insertMany(players);
     console.log("Inserted sample players");

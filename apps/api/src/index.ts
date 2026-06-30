@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { ensureSchema } from "./db/schema";
 import { auth } from "./modules/auth/auth.controller";
 import { items } from "./modules/items/items.controller";
 import { orders } from "./modules/orders/orders.controller";
-import { transactions } from "./modules/transactions/transactions.controller";
-import { ratings } from "./modules/ratings/ratings.controller";
 import { players } from "./modules/players/players.controller";
-import { ensureSchema } from "./db/schema";
+import { ratings } from "./modules/ratings/ratings.controller";
+import { transactions } from "./modules/transactions/transactions.controller";
 
 const app = new Hono();
 
@@ -32,7 +32,7 @@ app.onError((err, c) => {
   return c.json({ error: "Internal server error" }, 500);
 });
 
-const port = parseInt(process.env.PORT || "3000", 10);
+const port = 3000;
 
 console.log(`Initializing schema...`);
 ensureSchema()

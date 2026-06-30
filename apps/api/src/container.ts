@@ -16,13 +16,16 @@ const ordersRepo = new OrdersRepository();
 const ratingsRepo = new RatingsRepository();
 const txRepo = new TransactionsRepository();
 
-const ordersSvc = new OrdersService(ordersRepo);
-const ratingsSvc = new RatingsService(ratingsRepo);
-const playersSvc = new PlayersService(playersRepo, ratingsSvc, ordersSvc);
-
-export const authService = new AuthService(playersSvc);
+export const ordersService = new OrdersService(ordersRepo);
+export const ratingsService = new RatingsService(ratingsRepo);
+export const playersService = new PlayersService(
+  playersRepo,
+  ratingsService,
+  ordersService,
+);
+export const authService = new AuthService(playersService);
 export const itemsService = new ItemsService(itemsRepo);
-export const ordersService = ordersSvc;
-export const ratingsService = ratingsSvc;
-export const playersService = playersSvc;
-export const transactionsService = new TransactionsService(txRepo, ordersSvc);
+export const transactionsService = new TransactionsService(
+  txRepo,
+  ordersService,
+);
