@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Skeleton } from "../components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { WhisperButton } from "../components/WhisperButton";
 
 type Order = {
   _id: string;
   player_id: string;
+  player_username: string;
+  item_id: string;
   order_type: "buy" | "sell";
   platinum: number;
   quantity: number;
@@ -33,69 +41,98 @@ export default function ItemDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p className="text-warframe-muted">Loading...</p>;
-  if (!item) return <p className="text-warframe-red">Item not found</p>;
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-24" />
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-24" />
+            {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  if (!item) return <p className="text-destructive text-center py-12">Item not found</p>;
+
+  const itemName = item.item_name as string;
   const sellOrders = orders.filter((o) => o.order_type === "sell");
   const buyOrders = orders.filter((o) => o.order_type === "buy");
 
   return (
     <div>
-      <Link to="/" className="text-sm text-warframe-muted no-underline hover:text-warframe-accent">&larr; Back to items</Link>
-      <h1 className="text-2xl font-bold mt-2 mb-6">{item.item_name as string}</h1>
+      <Link to="/" className="text-sm text-muted-foreground no-underline hover:text-foreground">&larr; Back to items</Link>
+      <h1 className="text-2xl font-bold mt-2 mb-6">{itemName}</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Sell Orders</h2>
+      <Tabs defaultValue="sell">
+        <TabsList>
+          <TabsTrigger value="sell">Sell Orders ({sellOrders.length})</TabsTrigger>
+          <TabsTrigger value="buy">Buy Orders ({buyOrders.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="sell" className="mt-4">
           {sellOrders.length === 0 ? (
-            <p className="text-warframe-muted text-sm">No sell orders.</p>
+            <p className="text-muted-foreground text-sm">No sell orders.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {sellOrders.map((o) => (
-                <OrderCard key={o._id} order={o} />
+                <OrderCard key={o._id} order={o} itemName={itemName} />
               ))}
             </div>
           )}
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Buy Orders</h2>
+        </TabsContent>
+        <TabsContent value="buy" className="mt-4">
           {buyOrders.length === 0 ? (
-            <p className="text-warframe-muted text-sm">No buy orders.</p>
+            <p className="text-muted-foreground text-sm">No buy orders.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {buyOrders.map((o) => (
-                <OrderCard key={o._id} order={o} />
+                <OrderCard key={o._id} order={o} itemName={itemName} />
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="mt-6">
-        <Link
-          to={`/orders/new?item_id=${id}`}
-          className="inline-block bg-warframe-accent text-white rounded px-4 py-2 text-sm hover:opacity-90 no-underline"
-        >
-          Place Order
-        </Link>
+        <Button asChild>
+          <Link to={`/orders/new?item_id=${id}`}>Place Order</Link>
+        </Button>
       </div>
     </div>
   );
 }
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, itemName }: { order: Order; itemName: string }) {
   return (
-    <div className="border border-warframe-border bg-warframe-surface rounded p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-warframe-gold font-medium">{order.platinum} platinum</span>
-        <span className="text-sm text-warframe-muted">x{order.quantity}</span>
-      </div>
-      <div className="flex items-center justify-between mt-1 text-sm">
-        <Link to={`/players/${order.player_id}`} className="text-warframe-accent no-underline hover:underline">
-          Seller
-        </Link>
-        <span className="text-warframe-muted">{order.platform.toUpperCase()}</span>
-      </div>
-    </div>
+    <Card size="sm">
+      <CardContent className="flex items-center justify-between gap-4 pt-(--card-spacing)">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-gold font-medium shrink-0">{order.platinum}p</span>
+          <span className="text-muted-foreground text-xs shrink-0">x{order.quantity}</span>
+          <Badge variant="outline" className="text-[10px]">{order.platform.toUpperCase()}</Badge>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to={`/players/${order.player_id}`}
+            className="text-xs text-muted-foreground no-underline hover:text-foreground"
+          >
+            {order.player_username}
+          </Link>
+          <WhisperButton
+            username={order.player_username}
+            itemName={itemName}
+            orderType={order.order_type}
+            platinum={order.platinum}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

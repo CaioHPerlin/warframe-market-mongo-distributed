@@ -1,65 +1,76 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { toast } from "sonner";
 
-const PLATFORMS = ["pc", "ps4", "xbox", "switch"];
+const PLATFORMS = ["pc", "ps4", "xbox", "switch"] as const;
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [platform, setPlatform] = useState("pc");
-  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await register(username, password, platform);
-      nav("/");
+      toast.success("Account created");
+      navigate("/");
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-sm mx-auto mt-12">
-      <h1 className="text-xl font-bold mb-6">Register</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="bg-warframe-surface border border-warframe-border rounded px-3 py-2 text-warframe-text placeholder-warframe-muted"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="bg-warframe-surface border border-warframe-border rounded px-3 py-2 text-warframe-text placeholder-warframe-muted"
-        />
-        <select
-          value={platform}
-          onChange={(e) => setPlatform(e.target.value)}
-          className="bg-warframe-surface border border-warframe-border rounded px-3 py-2 text-warframe-text"
-        >
-          {PLATFORMS.map((p) => (
-            <option key={p} value={p}>{p.toUpperCase()}</option>
-          ))}
-        </select>
-        {error && <p className="text-warframe-red text-sm">{error}</p>}
-        <button
-          type="submit"
-          className="bg-warframe-accent text-white rounded px-4 py-2 hover:opacity-90 cursor-pointer"
-        >
-          Register
-        </button>
-      </form>
-      <p className="mt-4 text-sm text-warframe-muted">
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
+    <div className="flex justify-center pt-12">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>Register</CardTitle>
+          <CardDescription>New Tenno, ready for duty</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="platform">Platform</Label>
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((p) => (
+                    <SelectItem key={p} value={p}>{p.toUpperCase()}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Creating..." : "Register"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Already have an account? <Link to="/login" className="text-primary no-underline hover:underline">Login</Link>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

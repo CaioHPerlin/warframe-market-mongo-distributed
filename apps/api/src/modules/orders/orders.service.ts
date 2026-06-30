@@ -1,10 +1,10 @@
-import { OrdersRepository } from "./orders.repository";
+import { OrdersRepository, type OrderWithPlayer } from "./orders.repository";
 import type { Order, CreateOrder } from "@warframe/shared";
 
 export class OrdersService {
   constructor(private ordersRepo: OrdersRepository) {}
 
-  async list(filter: Record<string, unknown>): Promise<Order[]> {
+  async list(filter: Record<string, unknown>): Promise<OrderWithPlayer[]> {
     return this.ordersRepo.find(filter);
   }
 

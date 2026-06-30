@@ -4,11 +4,37 @@ import type { Order } from "@warframe/shared";
 
 type OrderDoc = Omit<Order, "_id">;
 
+export type OrderWithPlayer = Order & { player_username: string };
+
 export class OrdersRepository {
-  async find(filter: Record<string, unknown>): Promise<Order[]> {
+  async find(filter: Record<string, unknown>): Promise<OrderWithPlayer[]> {
     const db = await getDB();
-    const docs = await db.collection<OrderDoc>("orders").find(filter).sort({ createdAt: -1 }).limit(100).toArray();
-    return docs.map((d) => ({ ...d, _id: d._id.toString() }));
+    const docs = await db
+      .collection<OrderDoc>("orders")
+      .aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $limit: 100 },
+        {
+          $lookup: {
+            from: "players",
+            let: { pid: { $toObjectId: "$player_id" } },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$pid"] } } },
+            ],
+            as: "_player",
+          },
+        },
+        { $unwind: { path: "$_player", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            player_username: "$_player.username",
+          },
+        },
+        { $project: { _player: 0 } },
+      ])
+      .toArray();
+    return docs.map((d) => ({ ...d, _id: d._id.toString(), player_username: d.player_username ?? "Unknown" }) as unknown as OrderWithPlayer);
   }
 
   async findById(id: string): Promise<Order | null> {
