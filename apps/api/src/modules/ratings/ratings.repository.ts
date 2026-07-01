@@ -1,25 +1,48 @@
-import { type WithId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { getDB } from "../../db/client";
 import type { Rating } from "@warframe/shared";
 
-type RatingDoc = Omit<Rating, "_id">;
+type RatingDoc = Omit<Rating, "_id" | "rated_id" | "rater_id"> & {
+  rated_id: ObjectId;
+  rater_id: ObjectId;
+};
+
+function toRating(doc: RatingDoc & { _id: ObjectId }): Rating {
+  return {
+    ...doc,
+    _id: doc._id.toString(),
+    rated_id: doc.rated_id.toString(),
+    rater_id: doc.rater_id.toString(),
+  };
+}
 
 export class RatingsRepository {
   async findByRatedId(ratedId: string): Promise<Rating[]> {
     const db = await getDB();
-    const docs = await db.collection<RatingDoc>("ratings").find({ rated_id: ratedId }).sort({ createdAt: -1 }).limit(100).toArray();
-    return docs.map((d) => ({ ...d, _id: d._id.toString() }));
+    const docs = await db
+      .collection<RatingDoc>("ratings")
+      .find({ rated_id: new ObjectId(ratedId) })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .toArray();
+    return docs.map(toRating);
   }
 
   async findByRaterAndRated(raterId: string, ratedId: string): Promise<Rating | null> {
     const db = await getDB();
-    const doc = await db.collection<RatingDoc>("ratings").findOne({ rater_id: raterId, rated_id: ratedId });
-    return doc ? { ...doc, _id: doc._id.toString() } : null;
+    const doc = await db
+      .collection<RatingDoc>("ratings")
+      .findOne({ rater_id: new ObjectId(raterId), rated_id: new ObjectId(ratedId) });
+    return doc ? toRating(doc) : null;
   }
 
-  async insert(doc: RatingDoc): Promise<Rating> {
+  async insert(doc: Omit<Rating, "_id">): Promise<Rating> {
     const db = await getDB();
-    const result = await db.collection<RatingDoc>("ratings").insertOne(doc);
+    const result = await db.collection("ratings").insertOne({
+      ...doc,
+      rater_id: new ObjectId(doc.rater_id),
+      rated_id: new ObjectId(doc.rated_id),
+    });
     return { ...doc, _id: result.insertedId.toString() };
   }
 
@@ -28,7 +51,7 @@ export class RatingsRepository {
     const agg = await db
       .collection<RatingDoc>("ratings")
       .aggregate([
-        { $match: { rated_id: playerId } },
+        { $match: { rated_id: new ObjectId(playerId) } },
         { $group: { _id: "$rating", count: { $sum: 1 } } },
       ])
       .toArray();

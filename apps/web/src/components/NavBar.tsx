@@ -12,14 +12,14 @@ export function NavBar() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm px-4 lg:px-6 h-14 flex items-center justify-between">
-      <Link to="/" className="font-heading text-lg font-bold text-gold no-underline hover:text-gold/80 transition-colors">
+      <Link to="/" className="font-heading text-xl font-bold text-tea-green no-underline hover:text-muted-teal transition-colors">
         Warframe Market
       </Link>
 
       <nav className="hidden md:flex items-center gap-1">
         {player ? (
           <>
-            <Button variant="ghost" size="sm" render={<Link to={`/players/${player.id}`} />} className="gap-2">
+            <Button variant="ghost" size="sm" render={<Link to={`/players/${player.username}`} />} className="gap-2">
               <Avatar className="size-6">
                 <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
                   {player.username.charAt(0).toUpperCase()}
@@ -61,7 +61,7 @@ export function NavBar() {
             </Button>
             {player ? (
               <>
-                <Button variant="ghost" className="justify-start gap-3" render={<Link to={`/players/${player.id}`} onClick={() => setOpen(false)} />}>
+                <Button variant="ghost" className="justify-start gap-3" render={<Link to={`/players/${player.username}`} onClick={() => setOpen(false)} />}>
                   <UserIcon className="size-4" />
                   Profile
                 </Button>

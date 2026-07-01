@@ -1,15 +1,9 @@
-import { ItemsRepository } from "./items.repository";
-import type { Item } from "@warframe/shared";
+import { ItemsRepository, type ItemWithPrice, type FindPaginatedOpts } from "./items.repository";
 
-export type ListOptions = {
-  q?: string;
-  tag?: string;
-  page: number;
-  limit: number;
-};
+export type ListOptions = FindPaginatedOpts;
 
-export type PaginatedResult<T> = {
-  data: T[];
+export type PaginatedResult = {
+  data: ItemWithPrice[];
   total: number;
   page: number;
   limit: number;
@@ -19,7 +13,7 @@ export type PaginatedResult<T> = {
 export class ItemsService {
   constructor(private itemsRepo: ItemsRepository) {}
 
-  async list(opts: ListOptions): Promise<PaginatedResult<Item>> {
+  async list(opts: ListOptions): Promise<PaginatedResult> {
     const { data, total } = await this.itemsRepo.findPaginated(opts);
     return {
       data,
@@ -34,7 +28,7 @@ export class ItemsService {
     return this.itemsRepo.findAllTags();
   }
 
-  async get(id: string): Promise<Item | null> {
+  async get(id: string): Promise<ItemWithPrice | null> {
     return this.itemsRepo.findById(id);
   }
 }

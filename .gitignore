@@ -1,6 +1,7 @@
 node_modules/
 .env
 plan.md
+plan-2.md
 dist/
 .cache/
 *.js.map

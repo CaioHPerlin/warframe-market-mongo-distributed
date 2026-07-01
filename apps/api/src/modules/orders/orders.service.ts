@@ -1,11 +1,32 @@
-import { OrdersRepository, type OrderWithPlayer } from "./orders.repository";
+import { OrdersRepository, type OrderWithPlayer, type FindOrdersOpts } from "./orders.repository";
 import type { Order, CreateOrder } from "@warframe/shared";
+
+export type ListOptions = FindOrdersOpts;
+
+export type PaginatedOrdersResult = {
+  data: OrderWithPlayer[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+};
 
 export class OrdersService {
   constructor(private ordersRepo: OrdersRepository) {}
 
   async list(filter: Record<string, unknown>): Promise<OrderWithPlayer[]> {
     return this.ordersRepo.find(filter);
+  }
+
+  async listPaginated(opts: FindOrdersOpts): Promise<PaginatedOrdersResult> {
+    const { data, total } = await this.ordersRepo.findPaginated(opts);
+    return {
+      data,
+      total,
+      page: opts.page,
+      limit: opts.limit,
+      pages: Math.ceil(total / opts.limit),
+    };
   }
 
   async get(id: string): Promise<Order | null> {
@@ -41,7 +62,15 @@ export class OrdersService {
     return true;
   }
 
+  async updateQuantity(orderId: string, quantity: number): Promise<void> {
+    await this.ordersRepo.update(orderId, { quantity, updatedAt: new Date().toISOString() });
+  }
+
   async setStatus(orderId: string, status: string): Promise<void> {
-    await this.ordersRepo.update(orderId, { status, updatedAt: new Date().toISOString() } as Partial<Omit<Order, "_id">>);
+    await this.ordersRepo.update(orderId, { status, updatedAt: new Date().toISOString() });
+  }
+
+  async delete(orderId: string): Promise<void> {
+    await this.ordersRepo.delete(orderId);
   }
 }

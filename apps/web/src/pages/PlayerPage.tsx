@@ -1,28 +1,44 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { api } from "../lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Skeleton } from "../components/ui/skeleton";
+import {
+  ArrowLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  StarIcon,
+  ThumbsUpIcon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { OrderActionButtons } from "../components/OrderActionButtons";
+import { PlatinumIcon } from "../components/PlatinumIcon";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { ThumbsUpIcon, ThumbsDownIcon, CalendarIcon, Gamepad2Icon } from "lucide-react";
-
-type PlayerProfile = {
-  id: string;
-  username: string;
-  platform: string;
-  createdAt: string;
-  reputation: Record<string, number>;
-};
+import { Badge } from "../components/ui/badge";
+import { Button, buttonVariants } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
+import { Skeleton } from "../components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import { WhisperButton } from "../components/WhisperButton";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { cn } from "../lib/utils";
 
 type Rating = {
   _id: string;
   rater_id: string;
-  rater_username?: string;
   rated_id: string;
-  rating_value: "positive" | "negative";
+  rating: "positive" | "negative" | "neutral";
   comment?: string;
   createdAt: string;
 };
@@ -30,175 +46,560 @@ type Rating = {
 type Order = {
   _id: string;
   item_id: string;
+  item_name: string;
   order_type: "buy" | "sell";
+  player_id?: string;
   platinum: number;
   quantity: number;
   status: string;
   createdAt: string;
 };
 
+type Transaction = {
+  _id: string;
+  item_id: string;
+  order_id: string;
+  seller_id: string;
+  buyer_id: string;
+  item_name: string;
+  seller_username: string;
+  buyer_username: string;
+  platinum: number;
+  quantity: number;
+  completedAt: string;
+};
+
+type PaginatedOrders = {
+  data: Order[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+};
+
+const ORDER_TYPES = ["sell", "buy"] as const;
+const ORDERS_PER_PAGE = 10;
+
 export default function PlayerPage() {
   const { id } = useParams();
-  const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const { player: currentPlayer } = useAuth();
+  const [player, setPlayer] = useState<Record<string, unknown> | null>(null);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPages, setOrdersPages] = useState(0);
+  const [ordersType, setOrdersType] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([
-      api.get<PlayerProfile>(`/api/players/${id}`),
-      api.get<Rating[]>(`/api/ratings?player_id=${id}`),
-      api.get<Order[]>(`/api/players/${id}/orders`),
-    ])
-      .then(([p, r, o]) => {
+    let cancelled = false;
+
+    api
+      .get<Record<string, unknown>>(`/api/players/${id}`)
+      .then((p) => {
+        if (cancelled) return;
         setPlayer(p);
-        setRatings(r);
-        setOrders(o);
+        const playerId = p.id as string;
+
+        api
+          .get<Rating[]>(`/api/ratings?player_id=${playerId}`)
+          .then((r) => {
+            if (!cancelled) setRatings(r);
+          })
+          .catch(() => {});
+
+        api
+          .get<Transaction[]>(`/api/transactions?player_id=${playerId}`)
+          .then((t) => {
+            if (!cancelled) setTransactions(t);
+          })
+          .catch(() => {});
+
+        setLoading(false);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => setLoading(false));
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+
+  useEffect(() => {
+    if (!player) return;
+    const playerId = player.id as string;
+    let cancelled = false;
+
+    const params = new URLSearchParams({
+      player_id: playerId,
+      page: String(ordersPage),
+      limit: String(ORDERS_PER_PAGE),
+    });
+    if (ordersType) params.set("order_type", ordersType);
+
+    api
+      .get<PaginatedOrders>(`/api/orders?${params}`)
+      .then((res) => {
+        if (cancelled) return;
+        setOrders(res.data);
+        setOrdersTotal(res.total);
+        setOrdersPages(res.pages);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [player, ordersPage, ordersType]);
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto mt-8 space-y-4">
-        <Skeleton className="h-40 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
+      <div className="space-y-8">
+        <Skeleton className="h-5 w-28" />
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-20 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
       </div>
     );
   }
 
-  if (!player) return (
-    <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground">
-      <p className="text-lg">Player not found</p>
-    </div>
-  );
+  if (!player)
+    return (
+      <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground">
+        <p className="text-lg">Player not found</p>
+        <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+          Back to items
+        </Link>
+      </div>
+    );
 
-  const positive = player.reputation.positive || 0;
-  const negative = player.reputation.negative || 0;
-  const total = positive + negative;
-  const positivePct = total > 0 ? Math.round((positive / total) * 100) : 0;
+  const username = player.username as string;
+  const platform = player.platform as string;
+  const rep = player.reputation as Record<string, number> | undefined;
+  const positive = rep?.positive ?? 0;
+  const neutral = rep?.neutral ?? 0;
+  const totalRep = positive + neutral;
+  const repPct = totalRep > 0 ? Math.round((positive / totalRep) * 100) : 0;
+  const playerId = player.id as string;
+  const isOwnProfile = currentPlayer?.username === username;
 
   return (
-    <div className="max-w-2xl mx-auto mt-8 space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-4 pb-0">
-          <Avatar className="size-16 ring-2 ring-border">
-            <AvatarFallback className="bg-primary/10 text-primary text-xl font-heading">
-              {player.username.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <CardTitle className="text-2xl">{player.username}</CardTitle>
-            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Gamepad2Icon className="size-3.5" />
-                {player.platform.toUpperCase()}
-              </span>
-              <span className="flex items-center gap-1">
-                <CalendarIcon className="size-3.5" />
-                {new Date(player.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5 text-success">
-              <ThumbsUpIcon className="size-4" />
-              <span className="font-medium">{positive}</span>
-            </div>
-            {negative > 0 && (
-              <div className="flex items-center gap-1.5 text-destructive">
-                <ThumbsDownIcon className="size-4" />
-                <span className="font-medium">{negative}</span>
+    <div className="space-y-8">
+      <Link
+        to="/"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground transition-colors"
+      >
+        <ArrowLeftIcon className="size-4" />
+        Back
+      </Link>
+
+      <div className="flex items-start gap-5">
+        <Avatar className="size-20">
+          <AvatarFallback className="text-2xl bg-muted">
+            {username.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <h1 className="text-3xl font-heading font-bold tracking-tight">
+            {username}
+          </h1>
+          <Badge variant="outline" className="mt-2">
+            {platform.toUpperCase()}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <StarIcon className="size-5 text-amber-400" />
+              Reputation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-2">
+                <ThumbsUpIcon className="size-5 text-success" />
+                <span className="text-lg font-semibold text-success">
+                  {positive}
+                </span>
               </div>
-            )}
-            <span className="text-muted-foreground">{total} rating{total !== 1 ? "s" : ""}</span>
-          </div>
-          {total > 0 && (
-            <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden flex">
-              <div className="bg-success transition-all" style={{ width: `${positivePct}%` }} />
-              {negative > 0 && (
-                <div className="bg-destructive transition-all" style={{ width: `${100 - positivePct}%` }} />
-              )}
+              <div className="flex items-center gap-2">
+                <span className="size-5 flex items-center justify-center text-muted-foreground text-lg font-bold">
+                  •
+                </span>
+                <span className="text-lg font-semibold text-muted-foreground">
+                  {neutral}
+                </span>
+              </div>
+            </div>
+
+            <div className="h-3 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-success transition-all"
+                style={{ width: `${repPct}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totalRep > 0
+                ? `${repPct}% positive (${totalRep} total)`
+                : "No ratings yet"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {currentPlayer && !isOwnProfile && (
+          <RatePlayerCard
+            playerId={playerId}
+            username={username}
+            onSubmitted={(r) => {
+              setRatings((prev) => [r, ...prev]);
+              setPlayer((prev) => {
+                if (!prev) return prev;
+                const rep: Record<string, number> = (prev.reputation as Record<
+                  string,
+                  number
+                >) ?? { positive: 0, neutral: 0 };
+                const key = r.rating === "positive" ? "positive" : "neutral";
+                return { ...prev, reputation: { ...rep, [key]: (rep[key] ?? 0) + 1 } };
+              });
+            }}
+          />
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h2 className="text-xl font-heading font-semibold">
+            Ratings ({ratings.length})
+          </h2>
+          {ratings.length === 0 ? (
+            <p className="text-sm text-muted-foreground pb-6 pt-15 text-center">
+              No ratings received.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {ratings.map((r) => (
+                <Card key={r._id}>
+                  <CardContent className="flex items-start gap-4">
+                    <span
+                      className={`text-lg font-bold shrink-0 ${r.rating === "positive" ? "text-success" : "text-muted-foreground"}`}
+                    >
+                      {r.rating === "positive" ? "+" : "•"}
+                    </span>
+                    <div className="min-w-0">
+                      {r.comment && <p className="text-sm">{r.comment}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      <Tabs defaultValue="ratings">
-        <TabsList className="w-full">
-          <TabsTrigger value="ratings" className="flex-1">Ratings ({ratings.length})</TabsTrigger>
-          <TabsTrigger value="orders" className="flex-1">Orders ({orders.length})</TabsTrigger>
-        </TabsList>
+        <div className="space-y-4">
+          <h2 className="text-xl font-heading font-semibold">
+            Active Orders ({ordersTotal})
+          </h2>
 
-        <TabsContent value="ratings" className="mt-4 space-y-2">
-          {ratings.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No ratings yet.</p>
-          ) : (
-            ratings.map((r) => (
-              <Card key={r._id} size="sm">
-                <CardContent className="flex items-start gap-3 pt-(--card-spacing)">
-                  {r.rating_value === "positive" ? (
-                    <ThumbsUpIcon className="size-4 text-success shrink-0 mt-0.5" />
-                  ) : (
-                    <ThumbsDownIcon className="size-4 text-destructive shrink-0 mt-0.5" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    {r.comment && <p className="text-sm">{r.comment}</p>}
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(r.createdAt).toLocaleDateString()}
-                      {r.rater_username && ` · by ${r.rater_username}`}
-                    </p>
-                  </div>
-                  <Badge variant={r.rating_value === "positive" ? "default" : "destructive"} className="shrink-0">
-                    {r.rating_value}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
+          <div className="flex flex-wrap items-center gap-2">
+            {ORDER_TYPES.map((t) => (
+              <Badge
+                key={t}
+                variant={ordersType === t ? "default" : "secondary"}
+                className="cursor-pointer select-none transition-colors text-xs px-3 py-1.5 capitalize"
+                onClick={() => setOrdersType(ordersType === t ? null : t)}
+              >
+                {t}
+              </Badge>
+            ))}
+            {ordersType && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOrdersType(null)}
+                className="text-muted-foreground gap-1 h-6 text-xs px-2"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
 
-        <TabsContent value="orders" className="mt-4">
           {orders.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No orders yet.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No active orders.
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Plat</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((o) => (
-                  <TableRow key={o._id}>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[15%]">Type</TableHead>
+                    <TableHead className="w-[15%] text-right">
+                      Platinum
+                    </TableHead>
+                    <TableHead className="w-[10%] text-right">Qty</TableHead>
+                    <TableHead className="w-[35%]">Item</TableHead>
+                    <TableHead className="w-[25%] text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((o) => (
+                    <TableRow key={o._id}>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            o.order_type === "sell" ? "default" : "secondary"
+                          }
+                        >
+                          {o.order_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="inline-flex items-center gap-1 font-semibold text-gold">
+                          <PlatinumIcon className="size-4" />
+                          {o.platinum}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {o.quantity}
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to={`/items/${o.item_id}`}
+                          className="text-link hover:underline text-sm font-medium"
+                        >
+                          {o.item_name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {currentPlayer && o.player_id === currentPlayer.id ? (
+                          <OrderActionButtons
+                            orderId={o._id}
+                            itemName={o.item_name}
+                            onComplete={() =>
+                              setOrders((prev) =>
+                                prev.filter((x) => x._id !== o._id),
+                              )
+                            }
+                            onDelete={() =>
+                              setOrders((prev) =>
+                                prev.filter((x) => x._id !== o._id),
+                              )
+                            }
+                          />
+                        ) : (
+                          <WhisperButton
+                            username={username}
+                            itemName={o.item_name}
+                            orderType={o.order_type}
+                            platinum={o.platinum}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {ordersPages > 1 && (
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={ordersPage <= 1}
+                    onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeftIcon className="size-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {ordersPage} / {ordersPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={ordersPage >= ordersPages}
+                    onClick={() => setOrdersPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRightIcon className="size-4" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-heading font-semibold">
+          Transaction History ({transactions.length})
+        </h2>
+        {transactions.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            No transactions yet.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[15%]">Type</TableHead>
+                <TableHead className="w-[15%] text-right">Platinum</TableHead>
+                <TableHead className="w-[10%] text-right">Qty</TableHead>
+                <TableHead className="w-[30%]">Item</TableHead>
+                <TableHead className="w-[15%]">With</TableHead>
+                <TableHead className="w-[15%] text-right">Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((t) => {
+                const isSeller = t.seller_id === playerId;
+                return (
+                  <TableRow key={t._id}>
                     <TableCell>
-                      <Badge variant={o.order_type === "sell" ? "default" : "secondary"} className="text-[10px]">
-                        {o.order_type}
+                      <Badge variant={isSeller ? "default" : "secondary"}>
+                        {isSeller ? "sell" : "buy"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium text-gold">{o.platinum}p</TableCell>
-                    <TableCell className="text-muted-foreground">x{o.quantity}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px] capitalize">{o.status}</Badge>
+                    <TableCell className="text-right">
+                      <span className="inline-flex items-center gap-1 font-semibold text-gold">
+                        <PlatinumIcon className="size-4" />
+                        {t.platinum}
+                      </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {new Date(o.createdAt).toLocaleDateString()}
+                    <TableCell className="text-right text-muted-foreground">
+                      {t.quantity}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/items/${t.item_id}`}
+                        className="text-link hover:underline text-sm font-medium"
+                      >
+                        {t.item_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <Link
+                        to={`/players/${isSeller ? t.buyer_username : t.seller_username}`}
+                        className="text-link hover:underline"
+                      >
+                        {isSeller ? t.buyer_username : t.seller_username}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {new Date(t.completedAt).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </TabsContent>
-      </Tabs>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </div>
+  );
+}
+
+function RatePlayerCard({
+  playerId,
+  username,
+  onSubmitted,
+}: {
+  playerId: string;
+  username: string;
+  onSubmitted: (rating: Rating) => void;
+}) {
+  const [rating, setRating] = useState<"positive" | "neutral" | null>(null);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    if (!rating) return;
+    setSubmitting(true);
+    try {
+      const r = await api.post<Rating>("/api/ratings", {
+        rated_id: playerId,
+        rating,
+        comment: comment.trim() || undefined,
+      });
+      toast.success(`Rated ${username} as ${rating}`);
+      onSubmitted(r);
+      setRating(null);
+      setComment("");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to submit rating";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <StarIcon className="size-4 text-amber-400" />
+          Rate {username}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant={rating === "positive" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRating("positive")}
+            className="gap-1.5"
+          >
+            <ThumbsUpIcon className="size-4" />
+            Positive
+          </Button>
+          <Button
+            variant={rating === "neutral" ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setRating("neutral")}
+            className="gap-1.5"
+          >
+            Neutral
+          </Button>
+        </div>
+        <input
+          className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+          placeholder="Add a comment or description..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          maxLength={500}
+        />
+        <p className="text-xs text-muted-foreground text-right">
+          {comment.length}/500
+        </p>
+        <Button
+          disabled={!rating || submitting}
+          onClick={submit}
+          className="w-full"
+        >
+          {submitting ? "Submitting..." : "Submit Rating"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

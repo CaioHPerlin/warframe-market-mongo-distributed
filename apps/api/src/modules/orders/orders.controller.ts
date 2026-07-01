@@ -9,9 +9,22 @@ orders.get("/", async (c) => {
   const filter: Record<string, unknown> = {};
   const itemId = c.req.query("item_id");
   if (itemId) filter.item_id = itemId;
+  const playerId2 = c.req.query("player_id");
+  if (playerId2) filter.player_id = playerId2;
   const platform = c.req.query("platform");
   if (platform) filter.platform = platform;
+  const orderType = c.req.query("order_type");
+  if (orderType) filter.order_type = orderType;
   filter.status = c.req.query("status") ?? "active";
+
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") ?? "20", 10)));
+
+  const hasPagination = c.req.query("page") !== undefined || c.req.query("limit") !== undefined;
+
+  if (hasPagination) {
+    return c.json(await ordersService.listPaginated({ filter, page, limit }));
+  }
 
   return c.json(await ordersService.list(filter));
 });

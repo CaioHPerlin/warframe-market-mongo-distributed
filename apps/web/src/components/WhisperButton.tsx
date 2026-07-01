@@ -17,9 +17,9 @@ export function WhisperButton(opts: { username: string; itemName: string; orderT
   };
 
   return (
-    <Button variant="outline" size="xs" onClick={copy}>
+    <Button variant="outline" size="xs" onClick={copy} className="gap-1">
       <CopyIcon className="size-3" />
-      /w
+      /Whisper
     </Button>
   );
 }

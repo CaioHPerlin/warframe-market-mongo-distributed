@@ -15,7 +15,7 @@ export type Transaction = z.infer<typeof transactionSchema>;
 
 export const createTransactionSchema = z.object({
   order_id: z.string(),
-  buyer_id: z.string(),
+  counterparty_username: z.string(),
 });
 
 export type CreateTransaction = z.infer<typeof createTransactionSchema>;

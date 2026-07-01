@@ -1,193 +1,212 @@
-import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { api } from "../lib/api";
-import { Input } from "../components/ui/input";
-import { Card, CardContent } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Skeleton } from "../components/ui/skeleton";
 import {
-  SearchIcon,
-  PackageIcon,
-  ImageIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  FilterIcon,
+  ImageIcon,
+  PackageIcon,
+  SearchIcon,
   XIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { PlatinumIcon } from "../components/PlatinumIcon";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Skeleton } from "../components/ui/skeleton";
+import { api } from "../lib/api";
 
-type Item = {
+const CATEGORY_TAGS = [
+  "weapon",
+  "primary",
+  "secondary",
+  "melee",
+  "mod",
+  "warframe",
+  "relic",
+  "sentinel",
+  "archwing",
+  "companion",
+  "fish",
+  "gem",
+  "resource",
+  "blueprint",
+  "key",
+] as const;
+
+type ItemWithPrice = {
   _id: string;
   item_name: string;
   url_name: string;
-  tags: string[];
   thumb?: string;
+  tags: string[];
+  minSellPrice?: number;
+  avgSellPrice?: number;
+  lastTransactionPrice?: number;
 };
 
 type PaginatedResponse = {
-  data: Item[];
+  data: ItemWithPrice[];
   total: number;
   page: number;
   limit: number;
   pages: number;
 };
 
-const ITEMS_PER_PAGE = 24;
+const ITEMS_PER_PAGE = 20;
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function ItemsPage() {
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<ItemWithPrice[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
-  const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get<string[]>("/api/items/tags").then(setAllTags).catch(() => {});
-  }, []);
-
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (tag) params.set("tag", tag);
-    params.set("page", String(page));
-    params.set("limit", String(ITEMS_PER_PAGE));
-
-    try {
-      const res = await api.get<PaginatedResponse>(`/api/items?${params}`);
-      setItems(res.data);
-      setTotal(res.total);
-      setPage(res.page);
-      setPages(res.pages);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, tag, page]);
-
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
     setPage(1);
-  }, [search, tag]);
+  }, [debouncedSearch, tag]);
+
+  useEffect(() => {
+    const abort = new AbortController();
+
+    const fetchItems = async () => {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      if (tag) params.set("tag", tag);
+      params.set("page", String(page));
+      params.set("limit", String(ITEMS_PER_PAGE));
+      try {
+        const res = await api.get<PaginatedResponse>(`/api/items?${params}`, {
+          signal: abort.signal,
+        });
+        if (!abort.signal.aborted) {
+          setItems(res.data);
+          setTotal(res.total);
+          setPages(res.pages);
+        }
+      } catch {
+        if (!abort.signal.aborted) setItems([]);
+      } finally {
+        if (!abort.signal.aborted) setLoading(false);
+      }
+    };
+    fetchItems();
+
+    return () => abort.abort();
+  }, [debouncedSearch, tag, page]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-      <h1 className="text-3xl font-heading font-bold tracking-tight">Items</h1>
-        <p className="text-sm text-muted-foreground">{total > 0 ? `${total} items in the market` : "Browse and search all Warframe items"}</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-4xl font-heading font-bold tracking-tight text-tea-green">
+          Warframe Market
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {total > 0
+            ? `${total} items in the market`
+            : "Browse and search all Warframe items"}
+        </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search items..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10"
-          />
-        </div>
+      <div className="relative">
+        <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+        <Input
+          placeholder="Search items..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-11 h-11 text-base"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterIcon className="size-3.5 text-muted-foreground shrink-0" />
-        {allTags.slice(0, 20).map((t) => (
+        {CATEGORY_TAGS.map((t) => (
           <Badge
             key={t}
             variant={tag === t ? "default" : "secondary"}
-            className="cursor-pointer select-none transition-colors"
+            className="cursor-pointer select-none transition-colors text-xs px-3 py-1.5 capitalize"
             onClick={() => setTag(tag === t ? "" : t)}
           >
             {t}
           </Badge>
         ))}
         {tag && (
-          <Button variant="ghost" size="xs" onClick={() => setTag("")} className="text-muted-foreground">
-            <XIcon className="size-3" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTag("")}
+            className="text-muted-foreground gap-1"
+          >
+            <XIcon className="size-3.5" />
             Clear
           </Button>
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+            <Skeleton key={i} className="h-21 rounded-xl" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground">
-          <PackageIcon className="size-12 opacity-30" />
-          <p>No items found</p>
+        <div className="flex flex-col items-center gap-4 py-24 text-muted-foreground">
+          <PackageIcon className="size-16 opacity-20" />
+          <p className="text-lg">No items found</p>
           {(search || tag) && (
-            <Button variant="outline" size="sm" onClick={() => { setSearch(""); setTag(""); }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                setTag("");
+              }}
+            >
               Clear filters
             </Button>
           )}
         </div>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">
-            Page {page} of {pages} ({total} items)
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {pages} &middot; {total} items
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((item) => (
-              <Link key={item._id} to={`/items/${item._id}`} className="no-underline">
-                <Card size="sm" className="hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer h-full group">
-                  <CardContent className="flex items-center gap-3 pt-(--card-spacing)">
-                    {item.thumb ? (
-                      <img
-                        src={item.thumb}
-                        alt=""
-                        className="size-10 rounded object-contain shrink-0 bg-muted/50"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="size-10 rounded shrink-0 bg-muted/30 flex items-center justify-center">
-                        <ImageIcon className="size-4 text-muted-foreground/50" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                        {item.item_name}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {item.tags?.slice(0, 3).map((t) => (
-                          <Badge key={t} variant="secondary" className="text-[10px] leading-none py-0.5">
-                            {t}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <ItemCard key={item._id} item={item} />
             ))}
           </div>
 
-          <div className="flex items-center justify-center gap-2 pt-2">
+          <div className="flex items-center justify-center gap-3 pt-4">
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               <ChevronLeftIcon className="size-4" />
               Previous
             </Button>
-            <span className="text-xs text-muted-foreground px-2">
-              Page {page} of {pages}
+            <span className="text-sm text-muted-foreground px-2">
+              Page {page} / {pages}
             </span>
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               disabled={page >= pages}
               onClick={() => setPage((p) => p + 1)}
             >
@@ -198,5 +217,56 @@ export default function ItemsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function ItemCard({ item }: { item: ItemWithPrice }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <Link to={`/items/${item._id}`} className="no-underline">
+      <Card
+        size="sm"
+        className="hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer h-full group"
+      >
+        <CardContent className="flex items-center gap-4">
+          <div className="size-14 rounded-lg shrink-0 bg-muted/30 relative overflow-hidden">
+            {item.thumb && !imgError ? (
+              <>
+                {!imgLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <ImageIcon className="size-5 text-muted-foreground/40" />
+                  </div>
+                )}
+                <img
+                  src={item.thumb}
+                  alt=""
+                  className={`size-full object-contain transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+                  loading="lazy"
+                  onLoad={() => setImgLoaded(true)}
+                  onError={() => setImgError(true)}
+                />
+              </>
+            ) : (
+              <div className="size-full flex items-center justify-center">
+                <ImageIcon className="size-5 text-muted-foreground/40" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-medium truncate group-hover:text-primary transition-colors">
+              {item.item_name}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2">
+              <PlatinumIcon className="size-5 text-gold" />
+              <span className="text-xl font-bold text-gold">
+                {item.minSellPrice ?? item.lastTransactionPrice ?? "—"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

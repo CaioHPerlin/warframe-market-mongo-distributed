@@ -28,4 +28,5 @@ export const itemsService = new ItemsService(itemsRepo);
 export const transactionsService = new TransactionsService(
   txRepo,
   ordersService,
+  playersService,
 );

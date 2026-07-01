@@ -93,12 +93,7 @@ sh.shardCollection('wfmarket.transactions', { item_id: 1, completed_at: 1 })
 // Write volume is naturally low (one rating per pair of players who may have
 // completed a transaction), so there is no throughput bottleneck to justify
 // sharding. The collection lives on the primary shard as a regular collection.
-// The unique compound index below enforces the business rule directly at the
-// schema level: a player may rate another player only once. @TODO move this to code
-//db.getSiblingDB('wfmarket').ratings.createIndex(
-//  { rater_id: 1, rated_id: 1 },
-//  { unique: true, name: 'uniq_rater_rated' }
-//)
+// The unique compound index is created by apps/api/src/db/schema.ts at startup.
 "
 
 echo "✅ Cluster successfully initialized."

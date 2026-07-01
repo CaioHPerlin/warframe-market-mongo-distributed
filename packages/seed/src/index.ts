@@ -1,4 +1,5 @@
 import { MongoClient } from "mongodb";
+import data from "./data.json";
 
 const MONGO_URI = Bun.env.MONGO_URI || "mongodb://localhost:27017/wfmarket";
 const client = new MongoClient(MONGO_URI);
@@ -15,26 +16,15 @@ type ApiItem = {
   };
 };
 
-async function fetchItems(): Promise<ApiItem[]> {
-  console.log("Fetching items from warframe.market API...");
-  const res = await fetch("https://api.warframe.market/v2/items", {
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`API responded with ${res.status}`);
-  const json = await res.json();
-  const items: ApiItem[] = json.data ?? [];
-  console.log(`Fetched ${items.length} items`);
-  return items;
-}
-
 async function seed() {
   await client.connect();
   const db = client.db("wfmarket");
   const col = db.collection("items");
 
-  const items = await fetchItems();
+  const items: ApiItem[] = data.data ?? [];
+  console.log(`Loaded ${items.length} items from local data.json`);
 
-  const IMG_BASE = "https://api.warframe.market/";
+  const IMG_BASE = "https://warframe.market/static/assets/";
 
   const docs = items.map((item) => ({
     item_name: item.i18n.en.name,

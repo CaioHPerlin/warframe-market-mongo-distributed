@@ -30,11 +30,11 @@ export class PlayersService {
     return this.playersRepo.insert(doc);
   }
 
-  async getProfile(id: string): Promise<PlayerProfile | null> {
-    const player = await this.playersRepo.findById(id);
+  async getProfileByUsername(username: string): Promise<PlayerProfile | null> {
+    const player = await this.playersRepo.findByUsername(username);
     if (!player) return null;
 
-    const reputation = await this.ratingsService.getReputation(id);
+    const reputation = await this.ratingsService.getReputation(player._id);
 
     return {
       id: player._id,
