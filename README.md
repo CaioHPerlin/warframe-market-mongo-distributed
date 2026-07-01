@@ -6,7 +6,7 @@ A full-stack simulation of the Warframe Market domain running on a distributed M
 
 ![Cluster Topology](docs/topolog.png)
 
-The cluster consists of 13 Docker containers: 3 Config Servers (configRS), 3 shards with 3 replicas each (shard{1,2,3}RS), 1 mongos router, and 1 init job.
+The cluster consists of 13 Docker containers: 3 Config Servers (configRS), 3 shards with 3 replicas each, 1 mongos router, and 1 init job.
 
 ## Stack
 
